@@ -31,6 +31,14 @@ function Public.update_starmap_layers(planet)
 			}, { x = x, y = y })
 		end
 	end
+
+	if planet.orbit and planet.orbit.sprite then
+		Public.try_draw_orbit_of_planet(planet)
+
+		return { should_disable_default_orbit_sprite = true }
+	end
+	
+	return { should_disable_default_orbit_sprite = false }
 end
 
 -- Deprecated
@@ -67,14 +75,14 @@ function Public.try_draw_orbit_of_planet(planet)
 
 	if orbit.sprite.layers then
 		for _, layer in pairs(orbit.sprite.layers) do
-			Public.add_sprite_to_starmap(layer, { x = parent_x, y = parent_y })
+			Public.add_sprite_to_starmap(layer, { x = parent_x, y = parent_y }, planet.name)
 		end
 	else
-		Public.add_sprite_to_starmap(orbit.sprite, { x = parent_x, y = parent_y })
+		Public.add_sprite_to_starmap(orbit.sprite, { x = parent_x, y = parent_y }, planet.name)
 	end
 end
 
-function Public.add_sprite_to_starmap(sprite, extra_displacement)
+function Public.add_sprite_to_starmap(sprite, extra_displacement, orbit_name)
 	local sprite_copy = util.table.deepcopy(sprite)
 
 	local shift_x = 0
@@ -89,6 +97,11 @@ function Public.add_sprite_to_starmap(sprite, extra_displacement)
 			shift_y = shift_y + sprite_copy.shift[2]
 		end
 	end
+
+	-- attach a marker for this orbit so we can modify it later
+	sprite_copy.planetslib_orbit_name = orbit_name
+	-- also preserve the original shift, before applying displacement
+	sprite_copy.planetslib_orbit_shift = { shift_x, shift_y }
 
 	if extra_displacement then
 		if extra_displacement.x and extra_displacement.y then
@@ -105,7 +118,7 @@ function Public.add_sprite_to_starmap(sprite, extra_displacement)
 		shift_y,
 	}
 
-	table.insert(starmap_layers, sprite_copy)
+	PlanetsLib.rro.soft_insert(starmap_layers, sprite_copy)
 end
 
 -- Now begins the algorithm:
@@ -121,6 +134,10 @@ end
 local ordered_locations = orbits.locations_ordered_by_orbits(locations)
 
 for _, location in pairs(ordered_locations) do
+	local result = Public.update_starmap_layers(location)
+	if result.should_disable_default_orbit_sprite then
+		location.draw_orbit = false
+	end
 	Public.update_starmap_layers(location)
 end
 

@@ -28,6 +28,10 @@ function Public.extend(config)
 		end
 	end
 
+	if planet.orbit.draw_orbit then
+		planet.draw_orbit = planet.orbit.draw_orbit
+	end
+
 	if planet.special_properties then
 		error("special_properties is an invalid field.")
 		-- local special_properties = planet.special_properties
@@ -163,6 +167,16 @@ local function update_final_orbit(location, orbit)
 	}
 	location.distance = orbit.distance
 	location.orientation = orbit.orientation
+	-- finally, update starmap layers with matching name
+	for _, layer in pairs(data.raw["utility-sprites"]["default"].starmap_star.layers) do
+		if layer.planetslib_orbit_name == location.name then
+			-- make sure to recalculate using the original shift (if any)
+			layer.shift = {
+				layer.planetslib_orbit_shift[1] + parent_x * 32,
+				layer.planetslib_orbit_shift[2] + parent_y * 32,
+			}
+		end
+	end
 	-- apply origin changes to all child objects
 	local locations = {}
 	for _, type in pairs({ "space-location", "planet" }) do
@@ -181,6 +195,15 @@ local function update_final_orbit(location, orbit)
 				x = child_parent_x,
 				y = child_parent_y,
 			}
+			-- update any custom orbit sprite layers attached to this child
+			for _, layer in pairs(data.raw["utility-sprites"]["default"].starmap_star.layers) do
+				if layer.planetslib_orbit_name == child.name then
+					layer.shift = {
+						layer.planetslib_orbit_shift[1] + child_parent_x * 32,
+						layer.planetslib_orbit_shift[2] + child_parent_y * 32,
+					}
+				end
+			end
 		end
 	end
 end
@@ -403,47 +426,7 @@ end
 
 local radius_scaling_limit=1.25 --How much a sprite can be acceptably scaled by
 Public.get_orbit_sprite = function(radius)
-	PlanetsLib.constants.orbit_sprites = PlanetsLib.constants.orbit_sprites
-	local orbit_sprites = PlanetsLib.constants.orbit_sprites
-	local orbit_data = orbit_sprites[radius]
-	if not orbit_data then --If specific orbit sprite does not exist for radius, interpolate from the best fit.
-		local prev_radius 
-		local picked_radius
-		for i,key_radius in pairs(sorted_keys( orbit_sprites)) do
-			local sprite =  orbit_sprites
-			if not prev_radius then prev_radius = key_radius  end
-			if key_radius > radius then
-				if key_radius - radius > radius - prev_radius then
-					picked_radius = prev_radius
-				else
-					picked_radius = key_radius
-				end
-				break
-			end
-			prev_radius = key_radius
-		end
-		if not picked_radius then picked_radius = prev_radius end
-		
-		local radius_ratio = radius / picked_radius   --How much the orbit sprite should be scaled by from default scaling
-		
-		if radius_ratio > radius_scaling_limit or radius_ratio < 1/radius_scaling_limit then
-			local keys = {}
-			for k in pairs(orbit_sprites) do
-			keys[#keys+1] = tostring(k)
-			end
-
-			table.sort(keys)
-			local available_orbits = table.concat(keys, ", ")
-
-			error("No registered PlanetsLib orbit asset is appropriately sized for radius "..tostring(radius) ..". Available radii are: "..available_orbits .. "." .. "\n Radii in between these listed values can be used if between 0.66-1.5x the radius of an unscaled sprite.")
-		end
-
-		orbit_data = table.deepcopy(orbit_sprites[picked_radius])
-		orbit_data.scale = orbit_data.scale * radius_ratio
-	
-		
-	end
-	return table.deepcopy(orbit_data)
+	error("PlanetsLib.get_orbit_sprite(): This function is now obsolete. Enable SpaceLocationPrototype::draw_orbit instead.")
 end
 
 
